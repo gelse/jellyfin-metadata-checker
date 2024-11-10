@@ -1,0 +1,5 @@
+.vscode/
+.venv/
+jellyfin-basic.http
+.env
+jellyfin-openapi.json

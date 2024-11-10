@@ -2,6 +2,8 @@ import requests
 import time
 import langid
 import os
+import urllib3
+import socket
 
 userid = os.getenv("USERID")
 token = os.getenv("TOKEN")
@@ -10,6 +12,7 @@ protocol = os.getenv("PROTOCOL", "http")
 target_confidence = os.getenv("TARGET_CONFIDENCE", 0.75)
 target_lang = os.getenv("TARGET_LANG", "de")
 max_connection_retries = os.getenv("CONNECTION_RETRIES", 3)
+delay_between_retries = os.getenv("CONNECTION_ERROR_DELAY", 5)
 
 error = 0
 
@@ -57,11 +60,11 @@ def get(url: str):
         try:
             response = requests.get(url, headers=headers)
             return response
-        except ConnectionError as e:
+        except (requests.exceptions.ConnectionError, urllib3.exceptions.MaxRetryError, urllib3.exceptions.NameResolutionError, socket.gaierror) as e:
             attempts += 1
             if attempts < max_connection_retries:
-                log_info(f"Connection error occurred. Attempt {attempts} of {max_connection_retries}. Retrying after 1 second.")
-                time.sleep(1)
+                log_info(f"Connection error occurred. Attempt {attempts} of {max_connection_retries}. Retrying after {delay_between_retries} second.")
+                time.sleep(delay_between_retries)
             else:
                 log_error(f"Connection error occurred. Attempt {attempts} of {max_connection_retries}. Aborting.")
                 raise e
@@ -72,11 +75,11 @@ def post(url: str):
         try:
             response = requests.post(url, headers=headers)
             return response
-        except ConnectionError as e:
+        except (requests.exceptions.ConnectionError, urllib3.exceptions.MaxRetryError, urllib3.exceptions.NameResolutionError, socket.gaierror) as e:
             attempts += 1
             if attempts < max_connection_retries:
-                log_info(f"Connection error occurred. Attempt {attempts} of {max_connection_retries}. Retrying after 1 second.")
-                time.sleep(1)
+                log_info(f"Connection error occurred. Attempt {attempts} of {max_connection_retries}. Retrying after {delay_between_retries} second.")
+                time.sleep(delay_between_retries)
             else:
                 log_error(f"Connection error occurred. Attempt {attempts} of {max_connection_retries}. Aborting.")
                 raise e
@@ -123,7 +126,7 @@ def processItem(item):
         log_info(f"| {language} | {confidence_difference} |")
         
         if language == target_lang and confidence_difference > target_confidence:
-            log_info(f"Enough confidence that the language is {target_confidence}. Skipping.")
+            log_info(f"Enough confidence ({confidence_difference}) that the language is {language}. Skipping.")
         else:
             answer = input("Refresh item?")
             if answer == 'y':
